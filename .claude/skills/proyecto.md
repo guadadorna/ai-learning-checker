@@ -43,3 +43,45 @@ App web para que alumnos universitarios suban sus conversaciones con AI (ChatGPT
 
 ## Paper de Referencia
 El framework viene de: "AI Policy as Pedagogy: Guiding Student Learning with Generative AI" - Olmanson, Jeon, Hassani (University of Nebraska-Lincoln)
+
+---
+
+## Pendientes / Ideas Futuras
+- [ ] Agregar historial de analisis (que el usuario pueda ver sus analisis anteriores)
+- [ ] Mejorar parsing de links de ChatGPT (a veces falla)
+- [ ] Investigar si hay forma de leer links de Claude
+- [ ] Agregar opcion de exportar el analisis como PDF
+- [ ] Agregar ejemplos de conversaciones buenas vs malas para que los alumnos entiendan
+- [ ] Modo "profesor" para ver analisis de varios alumnos
+
+---
+
+## Registro de Sesiones
+
+### 2026-04-15 - Sesion inicial
+**Lo que se hizo:**
+- Creacion del proyecto desde cero con Next.js 16
+- Implementacion de las 3 formas de input (texto, PDF, link)
+- Integracion con Gemini 2.5 Flash
+- Deploy a Vercel (https://ai-learning-checker.vercel.app)
+- Iconos dinamicos para iOS/Android
+- Creacion de este skill de contexto
+
+**Problemas encontrados:**
+- pdf-parse no compatible con Turbopack → solucion: Gemini lee PDFs directamente
+- Links de Claude requieren auth → solucion: mensaje claro al usuario
+- Modelos de Gemini cambian de nombre → solucion: fallback a multiples modelos
+
+**Decisiones de diseno:**
+- Usar espanol rioplatense en el feedback (vos, che)
+- Tono empatico, no punitivo
+- Semaforo visual con colores
+
+---
+
+## Instrucciones para Claude
+Cuando trabajes en este proyecto:
+1. Actualiza este archivo al final de cada sesion con lo que se hizo
+2. Mueve items de "Pendientes" a "completado" cuando se terminen
+3. Agrega nuevos pendientes que surjan de la conversacion
+4. Registra problemas y soluciones para no repetir errores
