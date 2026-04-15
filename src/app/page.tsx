@@ -222,7 +222,7 @@ ChatGPT: La fotosintesis es el proceso por el cual..."
                   className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-700 placeholder:text-slate-400"
                 />
                 <p className="text-sm text-slate-500 mt-2">
-                  En ChatGPT: Menu → Compartir → Crear link. Pega el link aca.
+                  Funciona con ChatGPT (chatgpt.com/share/...). Para Claude, usa "Pegar texto".
                 </p>
               </div>
             )}

@@ -203,11 +203,14 @@ export async function POST(request: NextRequest) {
 
         if (url.includes("chatgpt.com/share") || url.includes("chat.openai.com/share")) {
           conversationText = await fetchChatGPTShare(url);
-        } else if (url.includes("claude.ai")) {
-          conversationText = await fetchClaudeShare(url);
+        } else if (url.includes("claude.ai/share")) {
+          return NextResponse.json(
+            { error: "Los links de Claude requieren login y no se pueden leer automaticamente. Por favor usa 'Pegar texto' y copia la conversacion manualmente." },
+            { status: 400 }
+          );
         } else {
           return NextResponse.json(
-            { error: "Link no soportado. Usa links de ChatGPT (chatgpt.com/share/...) o Claude." },
+            { error: "Link no soportado. Por ahora solo funcionan links de ChatGPT (chatgpt.com/share/...). Para Claude, usa 'Pegar texto'." },
             { status: 400 }
           );
         }
