@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
-import pdf from "pdf-parse-new";
 
 const analysisSchema = z.object({
   overallCategory: z.string().describe("La categoria predominante del uso de AI en esta conversacion"),
@@ -80,24 +79,50 @@ Responde en espanol rioplatense (vos, che, etc). Se directo pero empatico. El ob
 ## CONVERSACION A ANALIZAR:
 `;
 
-async function analyzeWithGemini(conversationText: string) {
-  // Truncate if too long
-  const maxChars = 30000;
-  if (conversationText.length > maxChars) {
-    conversationText = conversationText.slice(0, maxChars) + "\n\n[... conversacion truncada por longitud ...]";
-  }
-
+async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
   // Try gemini-2.5-flash first, fallback to gemini-1.5-flash if unavailable
   const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
 
   for (const modelName of models) {
     try {
-      const { object: analysis } = await generateObject({
-        model: google(modelName),
-        schema: analysisSchema,
-        prompt: ANALYSIS_PROMPT + conversationText,
-      });
-      return analysis;
+      if (pdfBase64) {
+        // Use multimodal for PDF
+        const { object: analysis } = await generateObject({
+          model: google(modelName),
+          schema: analysisSchema,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: ANALYSIS_PROMPT + "\n\n[El contenido de la conversacion esta en el PDF adjunto]",
+                },
+                {
+                  type: "file",
+                  data: pdfBase64,
+                  mediaType: "application/pdf",
+                },
+              ],
+            },
+          ],
+        });
+        return analysis;
+      } else {
+        // Text only
+        const maxChars = 30000;
+        let text = conversationText;
+        if (text.length > maxChars) {
+          text = text.slice(0, maxChars) + "\n\n[... conversacion truncada por longitud ...]";
+        }
+
+        const { object: analysis } = await generateObject({
+          model: google(modelName),
+          schema: analysisSchema,
+          prompt: ANALYSIS_PROMPT + text,
+        });
+        return analysis;
+      }
     } catch (error) {
       const isLastModel = modelName === models[models.length - 1];
       if (isLastModel) {
@@ -111,15 +136,13 @@ async function analyzeWithGemini(conversationText: string) {
 }
 
 async function fetchChatGPTShare(url: string): Promise<string> {
-  // ChatGPT share links: https://chatgpt.com/share/xxx
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error("No se pudo acceder al link compartido");
   }
   const html = await response.text();
 
-  // Extract conversation from the HTML - ChatGPT embeds it in a script tag
-  const scriptMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/s);
+  const scriptMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]*)<\/script>/);
   if (scriptMatch) {
     try {
       const data = JSON.parse(scriptMatch[1]);
@@ -135,24 +158,20 @@ async function fetchChatGPTShare(url: string): Promise<string> {
           .join("\n\n");
       }
     } catch {
-      // Fall through to text extraction
+      // Fall through
     }
   }
 
-  // Fallback: just get text content
   const textContent = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   return textContent;
 }
 
 async function fetchClaudeShare(url: string): Promise<string> {
-  // Claude share links don't have a public API, try to fetch
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error("No se pudo acceder al link de Claude");
   }
   const html = await response.text();
-
-  // Try to extract from page
   const textContent = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   return textContent;
 }
@@ -161,10 +180,11 @@ export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get("content-type") || "";
 
-    let conversationText: string;
+    let conversationText = "";
+    let pdfBase64: string | undefined;
 
     if (contentType.includes("multipart/form-data")) {
-      // PDF upload
+      // PDF upload - send directly to Gemini
       const formData = await request.formData();
       const file = formData.get("file") as File;
 
@@ -173,23 +193,12 @@ export async function POST(request: NextRequest) {
       }
 
       const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      try {
-        const pdfData = await pdf(buffer);
-        conversationText = pdfData.text;
-      } catch {
-        return NextResponse.json(
-          { error: "No se pudo leer el PDF. Asegurate de que sea un archivo valido." },
-          { status: 400 }
-        );
-      }
+      pdfBase64 = Buffer.from(arrayBuffer).toString("base64");
     } else {
       // JSON: text or link
       const body = await request.json();
 
       if (body.link) {
-        // Shared link
         const url = body.link.trim();
 
         if (url.includes("chatgpt.com/share") || url.includes("chat.openai.com/share")) {
@@ -203,21 +212,20 @@ export async function POST(request: NextRequest) {
           );
         }
       } else if (body.conversation) {
-        // Pasted text
         conversationText = body.conversation;
       } else {
         return NextResponse.json({ error: "No se envio conversacion, PDF ni link" }, { status: 400 });
       }
     }
 
-    if (!conversationText || conversationText.trim().length < 50) {
+    if (!pdfBase64 && (!conversationText || conversationText.trim().length < 50)) {
       return NextResponse.json(
         { error: "El contenido es muy corto. Necesito mas texto para analizar." },
         { status: 400 }
       );
     }
 
-    const analysis = await analyzeWithGemini(conversationText);
+    const analysis = await analyzeWithGemini(conversationText, pdfBase64);
     return NextResponse.json(analysis);
 
   } catch (error) {
