@@ -80,8 +80,8 @@ Responde en espanol rioplatense (vos, che, etc). Se directo pero empatico. El ob
 `;
 
 async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
-  // Try gemini-2.5-flash first, fallback to gemini-2.0-flash-lite if unavailable
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash-latest"];
+  // Try available models in order of preference
+  const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite-preview-06-17"];
 
   for (const modelName of models) {
     try {
