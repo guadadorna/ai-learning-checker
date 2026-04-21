@@ -86,7 +86,7 @@ const ANALYSIS_PROMPT = `Sos un experto en educacion y uso productivo de AI para
 
 async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
   // Try available models in order of preference
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash-001"];
 
   for (const modelName of models) {
     try {
