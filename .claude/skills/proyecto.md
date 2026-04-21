@@ -56,7 +56,25 @@ El framework viene de: "AI Policy as Pedagogy: Guiding Student Learning with Gen
 
 ---
 
+## Modelos de Gemini
+- **Principal**: `gemini-2.5-flash` (el mas nuevo y rapido)
+- **Fallback**: `gemini-2.5-flash-lite` (version lite si el principal falla)
+- Los modelos 2.0 ya no estan disponibles para nuevos usuarios de la API
+
 ## Registro de Sesiones
+
+### 2026-04-21 - Fix de modelos Gemini
+**Lo que se hizo:**
+- Fix de error "model is no longer available to new users"
+- Cambio de `gemini-2.0-flash` a `gemini-2.5-flash-lite` como fallback
+- Generacion de iconos PNG estaticos (icon-192.png, icon-512.png) en public/
+
+**Problemas encontrados:**
+- `gemini-2.0-flash` y `gemini-2.0-flash-001` deprecados para nuevos usuarios
+- `gemini-1.5-flash` tampoco disponible en v1beta para esta API key
+- Solucion: usar solo modelos 2.5 (flash y flash-lite)
+
+---
 
 ### 2026-04-15 - Sesion inicial
 **Lo que se hizo:**
@@ -66,15 +84,20 @@ El framework viene de: "AI Policy as Pedagogy: Guiding Student Learning with Gen
 - Deploy a Vercel (https://ai-learning-checker.vercel.app)
 - Iconos dinamicos para iOS/Android
 - Creacion de este skill de contexto
+- Fix de tono: profesional y serio (sin expresiones juveniles)
+- Fix de evaluacion: promedio ponderado que tira para abajo
 
 **Problemas encontrados:**
 - pdf-parse no compatible con Turbopack → solucion: Gemini lee PDFs directamente
 - Links de Claude requieren auth → solucion: mensaje claro al usuario
 - Modelos de Gemini cambian de nombre → solucion: fallback a multiples modelos
+- Tono demasiado informal ("che", "copado") → solucion: prompt con instrucciones de tono profesional
+- Evaluacion inconsistente (individual vs general) → solucion: promedio ponderado que tira para abajo
 
 **Decisiones de diseno:**
-- Usar espanol rioplatense en el feedback (vos, che)
-- Tono empatico, no punitivo
+- Espanol rioplatense pero PROFESIONAL (sin "che", "copado", "re bien")
+- Tono neutro y analitico, critico pero justo
+- Promedio ponderado que tira para abajo (problemas pesan mas, pero un desliz no arruina todo)
 - Semaforo visual con colores
 
 ---
