@@ -90,6 +90,7 @@ async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
 
   for (const modelName of models) {
     try {
+      console.log(`Trying model: ${modelName}`);
       if (pdfBase64) {
         // Use multimodal for PDF
         const { object: analysis } = await generateObject({
@@ -129,11 +130,13 @@ async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
         return analysis;
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      console.log(`Model ${modelName} failed:`, errorMessage);
       const isLastModel = modelName === models[models.length - 1];
       if (isLastModel) {
         throw error;
       }
-      console.log(`Model ${modelName} failed, trying next...`);
+      console.log(`Trying next model...`);
     }
   }
 
