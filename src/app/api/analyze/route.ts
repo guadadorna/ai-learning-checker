@@ -2,21 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { getSupabaseClient } from "@/lib/supabase";
 
 const analysisSchema = z.object({
-  overallCategory: z.string().describe("La categoria predominante del uso de AI en esta conversacion"),
-  status: z.enum(["prohibited", "discouraged", "allowed", "encouraged"]).describe("El estado segun el semaforo"),
-  exchanges: z.array(z.object({
-    userMessage: z.string().describe("Resumen del mensaje del usuario"),
-    aiResponse: z.string().describe("Resumen breve de la respuesta de la AI"),
-    category: z.string().describe("Categoria de este intercambio especifico"),
-    status: z.enum(["prohibited", "discouraged", "allowed", "encouraged"]),
-    concern: z.string().optional().describe("Preocupacion especifica si la hay"),
+  categoria: z.enum([
+    "DO_ALL_THE_WORK",
+    "DO_MY_BUSYWORK",
+    "GET_ME_STARTED",
+    "GIVE_ME_FEEDBACK",
+    "HELP_ME_LEARN",
+    "MAGNIFY_MY_WORK",
+  ]).describe("La categoria predominante del uso de AI en esta conversacion"),
+  estado: z.enum(["Prohibido", "Desalentado", "Permitido", "Fomentado"]).describe("El estado segun el semaforo"),
+  resumen: z.string().describe("2-3 oraciones explicando el diagnostico principal"),
+  alertas: z.array(z.string()).describe("Alertas importantes sobre usos problematicos"),
+  positivos: z.array(z.string()).describe("Aspectos positivos del uso de AI"),
+  sugerencias: z.array(z.string()).describe("Sugerencias concretas para mejorar el uso"),
+  intercambios: z.array(z.object({
+    mensaje_alumno: z.string().describe("Resumen anonimizado del mensaje del alumno"),
+    categoria: z.string().describe("Categoria asignada a este intercambio"),
+    observacion: z.string().describe("Observacion pedagogica sobre este intercambio"),
   })).describe("Analisis de cada intercambio significativo"),
-  summary: z.string().describe("Resumen general de como el estudiante uso la AI"),
-  alerts: z.array(z.string()).describe("Alertas importantes sobre usos problematicos"),
-  suggestions: z.array(z.string()).describe("Sugerencias concretas para mejorar el uso"),
-  positives: z.array(z.string()).describe("Aspectos positivos del uso de AI"),
+  conversacion_anonimizada: z.string().describe("La conversacion completa con datos personales reemplazados por [DATO_ANONIMIZADO]"),
 });
 
 const ANALYSIS_PROMPT = `Sos un experto en educacion y uso productivo de AI para el aprendizaje. Tu tarea es analizar una conversacion entre un estudiante y una AI (ChatGPT, Claude, etc) y clasificarla segun el siguiente framework de categorias:
@@ -73,6 +80,20 @@ const ANALYSIS_PROMPT = `Sos un experto en educacion y uso productivo de AI para
 6. Da sugerencias CONCRETAS y ACCIONABLES para mejorar
 7. Reconoce lo que el estudiante hizo bien
 
+## INSTRUCCIONES DE ANONIMIZACION:
+Antes de procesar la conversacion, detecta y elimina cualquier dato personal identificable: nombres propios, apellidos, emails, numeros de telefono, DNI, direcciones, o cualquier informacion que pueda identificar a una persona. Reemplazalos por [DATO_ANONIMIZADO].
+En el campo conversacion_anonimizada, devuelve la conversacion completa con esos reemplazos aplicados.
+
+## EJEMPLOS DE CLASIFICACION:
+
+EJEMPLO ROJO (prohibited):
+Estudiante: "Tengo que entregar un ensayo sobre la Revolucion Francesa. Escribimelo de 1500 palabras."
+→ Clasificacion: DO_ALL_THE_WORK. El estudiante delega completamente la tarea sin esfuerzo propio.
+
+EJEMPLO VERDE (encouraged):
+Estudiante: "Ya escribi mi ensayo sobre la Revolucion Francesa. No entiendo bien por que fue tan importante la Declaracion de los Derechos del Hombre. Explicame el contexto historico para que pueda profundizar mi argumento."
+→ Clasificacion: HELP_ME_LEARN. El estudiante hizo su trabajo y usa la AI para comprender mejor.
+
 ## FORMATO DE RESPUESTA:
 - Usa espanol rioplatense pero con tono PROFESIONAL y SERIO. Nada de "copado", "re bien", "genial", "che" ni expresiones juveniles o coloquiales.
 - Se CRITICO y EXIGENTE. Tu rol es ayudar a mejorar, no felicitar.
@@ -84,15 +105,21 @@ const ANALYSIS_PROMPT = `Sos un experto en educacion y uso productivo de AI para
 ## CONVERSACION A ANALIZAR:
 `;
 
+export type SurveyData = {
+  universidad: string;
+  carrera: string;
+  tipo_uso: string;
+  edad: number;
+  genero: string;
+};
+
 async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
-  // Try available models in order of preference
   const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
   for (const modelName of models) {
     try {
       console.log(`Trying model: ${modelName}`);
       if (pdfBase64) {
-        // Use multimodal for PDF
         const { object: analysis } = await generateObject({
           model: google(modelName),
           schema: analysisSchema,
@@ -115,7 +142,6 @@ async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
         });
         return analysis;
       } else {
-        // Text only
         const maxChars = 30000;
         let text = conversationText;
         if (text.length > maxChars) {
@@ -141,6 +167,31 @@ async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
   }
 
   throw new Error("Todos los modelos fallaron");
+}
+
+async function saveToSupabase(surveyData: SurveyData, analysis: z.infer<typeof analysisSchema>) {
+  console.log("Saving to Supabase:", { universidad: surveyData.universidad, categoria: analysis.categoria });
+  const { error } = await getSupabaseClient().from("analisis").insert({
+    universidad: surveyData.universidad,
+    carrera: surveyData.carrera,
+    tipo_uso: surveyData.tipo_uso,
+    edad: surveyData.edad,
+    genero: surveyData.genero,
+    conversacion_anonimizada: analysis.conversacion_anonimizada,
+    categoria: analysis.categoria,
+    estado: analysis.estado,
+    resumen: analysis.resumen,
+    alertas: analysis.alertas,
+    positivos: analysis.positivos,
+    sugerencias: analysis.sugerencias,
+    intercambios: analysis.intercambios,
+  });
+
+  if (error) {
+    console.error("Error saving to Supabase:", error);
+  } else {
+    console.log("Saved to Supabase OK");
+  }
 }
 
 async function fetchChatGPTShare(url: string): Promise<string> {
@@ -174,37 +225,32 @@ async function fetchChatGPTShare(url: string): Promise<string> {
   return textContent;
 }
 
-async function fetchClaudeShare(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("No se pudo acceder al link de Claude");
-  }
-  const html = await response.text();
-  const textContent = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-  return textContent;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get("content-type") || "";
 
     let conversationText = "";
     let pdfBase64: string | undefined;
+    let surveyData: SurveyData | undefined;
 
     if (contentType.includes("multipart/form-data")) {
-      // PDF upload - send directly to Gemini
       const formData = await request.formData();
       const file = formData.get("file") as File;
+      const surveyDataStr = formData.get("surveyData") as string;
 
       if (!file) {
         return NextResponse.json({ error: "No se envio ningun archivo" }, { status: 400 });
       }
 
+      if (surveyDataStr) {
+        surveyData = JSON.parse(surveyDataStr) as SurveyData;
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       pdfBase64 = Buffer.from(arrayBuffer).toString("base64");
     } else {
-      // JSON: text or link
       const body = await request.json();
+      surveyData = body.surveyData as SurveyData | undefined;
 
       if (body.link) {
         const url = body.link.trim();
@@ -237,6 +283,11 @@ export async function POST(request: NextRequest) {
     }
 
     const analysis = await analyzeWithGemini(conversationText, pdfBase64);
+
+    if (surveyData) {
+      await saveToSupabase(surveyData, analysis);
+    }
+
     return NextResponse.json(analysis);
 
   } catch (error) {
