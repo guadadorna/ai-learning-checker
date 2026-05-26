@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Learning Checker
 
-## Getting Started
+App web que analiza conversaciones de alumnos con AI (ChatGPT, Claude, etc.) y devuelve feedback sobre cómo las están usando para aprender, según el framework de Olmanson et al.
 
-First, run the development server:
+Producción: https://ai-learning-checker.vercel.app
+
+## Stack
+
+- Next.js 16 (App Router) + Tailwind
+- Gemini 2.5 Flash vía Vercel AI SDK (`@ai-sdk/google`)
+- Supabase para persistir análisis y datos demográficos
+- Deploy en Vercel
+
+## Setup
+
+### 1. Variables de entorno
+
+Copiar `.env.example` a `.env.local` y completar:
+
+- `GOOGLE_GENERATIVE_AI_API_KEY` — sacar de https://aistudio.google.com/app/apikey
+- `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` — sacar del proyecto de Supabase en Settings → API
+
+### 2. Base de datos (Supabase)
+
+Crear un proyecto en https://supabase.com, después en el SQL Editor pegar y correr el contenido de `supabase/schema.sql`. Eso crea la tabla `analisis` que la app usa para guardar cada análisis.
+
+Recomendado: crear **dos** proyectos separados, uno para desarrollo y otro para producción. El `.env.local` apunta al de dev; las env vars de Vercel apuntan al de prod. Así las pruebas no contaminan los datos reales.
+
+### 3. Correr local
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Estructura
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `src/app/page.tsx` — UI principal con tabs (texto / PDF / link)
+- `src/app/api/analyze/route.ts` — endpoint que llama a Gemini y guarda en Supabase
+- `src/app/admin/page.tsx` — panel para ver análisis guardados
+- `src/app/components/` — componentes (Semaforo, AnalysisResult, SurveyScreen)
+- `src/lib/supabase.ts` — cliente Supabase
+- `supabase/schema.sql` — schema de la tabla `analisis`
 
-## Learn More
+## Deploy
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Push a `main` deploya automáticamente a Vercel. Las env vars de prod se configuran en el dashboard de Vercel (mismas variables que `.env.local` pero con las credenciales del proyecto de Supabase de prod).
