@@ -105,14 +105,6 @@ Estudiante: "Ya escribi mi ensayo sobre la Revolucion Francesa. No entiendo bien
 ## CONVERSACION A ANALIZAR:
 `;
 
-export type SurveyData = {
-  universidad: string;
-  carrera: string;
-  tipo_uso: string;
-  edad: number;
-  genero: string;
-};
-
 async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
   const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
@@ -169,14 +161,9 @@ async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
   throw new Error("Todos los modelos fallaron");
 }
 
-async function saveToSupabase(surveyData: SurveyData, analysis: z.infer<typeof analysisSchema>) {
-  console.log("Saving to Supabase:", { universidad: surveyData.universidad, categoria: analysis.categoria });
+async function saveToSupabase(analysis: z.infer<typeof analysisSchema>) {
+  console.log("Saving to Supabase:", { categoria: analysis.categoria });
   const { error } = await getSupabaseClient().from("analisis").insert({
-    universidad: surveyData.universidad,
-    carrera: surveyData.carrera,
-    tipo_uso: surveyData.tipo_uso,
-    edad: surveyData.edad,
-    genero: surveyData.genero,
     conversacion_anonimizada: analysis.conversacion_anonimizada,
     categoria: analysis.categoria,
     estado: analysis.estado,
@@ -231,27 +218,19 @@ export async function POST(request: NextRequest) {
 
     let conversationText = "";
     let pdfBase64: string | undefined;
-    let surveyData: SurveyData | undefined;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       const file = formData.get("file") as File;
-      const surveyDataStr = formData.get("surveyData") as string;
 
       if (!file) {
         return NextResponse.json({ error: "No se envio ningun archivo" }, { status: 400 });
-      }
-
-      if (surveyDataStr) {
-        surveyData = JSON.parse(surveyDataStr) as SurveyData;
       }
 
       const arrayBuffer = await file.arrayBuffer();
       pdfBase64 = Buffer.from(arrayBuffer).toString("base64");
     } else {
       const body = await request.json();
-      surveyData = body.surveyData as SurveyData | undefined;
-
       if (body.link) {
         const url = body.link.trim();
 
@@ -284,9 +263,7 @@ export async function POST(request: NextRequest) {
 
     const analysis = await analyzeWithGemini(conversationText, pdfBase64);
 
-    if (surveyData) {
-      await saveToSupabase(surveyData, analysis);
-    }
+    await saveToSupabase(analysis);
 
     return NextResponse.json(analysis);
 

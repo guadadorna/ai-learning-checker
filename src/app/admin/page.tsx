@@ -1,16 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ChevronDown, ChevronUp, Download, LogIn } from "lucide-react";
 
 interface AnalysisRecord {
   id: string;
   created_at: string;
-  universidad: string;
-  carrera: string;
-  tipo_uso: string;
-  edad: number;
-  genero: string;
   categoria: string;
   estado: string;
   resumen: string;
@@ -39,14 +34,9 @@ function formatDate(iso: string) {
 }
 
 function exportCSV(records: AnalysisRecord[]) {
-  const headers = ["Fecha", "Universidad", "Carrera", "Tipo de uso", "Edad", "Género", "Categoría", "Estado", "Resumen"];
+  const headers = ["Fecha", "Categoría", "Estado", "Resumen"];
   const rows = records.map((r) => [
     formatDate(r.created_at),
-    r.universidad,
-    r.carrera,
-    r.tipo_uso,
-    r.edad,
-    r.genero,
     r.categoria,
     r.estado,
     `"${(r.resumen ?? "").replace(/"/g, '""')}"`,
@@ -212,11 +202,6 @@ export default function AdminPage() {
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
                     <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Fecha</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Universidad</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Carrera</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Tipo de uso</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600">Edad</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600">Género</th>
                     <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Categoría</th>
                     <th className="text-left px-4 py-3 font-semibold text-slate-600">Estado</th>
                     <th className="px-4 py-3"></th>
@@ -224,18 +209,12 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {records.map((record) => (
-                    <>
+                    <Fragment key={record.id}>
                       <tr
-                        key={record.id}
                         onClick={() => toggleRow(record.id)}
                         className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
                       >
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(record.created_at)}</td>
-                        <td className="px-4 py-3 text-slate-700 font-medium">{record.universidad}</td>
-                        <td className="px-4 py-3 text-slate-600">{record.carrera}</td>
-                        <td className="px-4 py-3 text-slate-600">{record.tipo_uso}</td>
-                        <td className="px-4 py-3 text-slate-600">{record.edad}</td>
-                        <td className="px-4 py-3 text-slate-600">{record.genero}</td>
                         <td className="px-4 py-3 text-slate-600 text-xs font-mono">{record.categoria?.replace(/_/g, " ")}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${estadoColors[record.estado] ?? "bg-slate-100 text-slate-600"}`}>
@@ -251,13 +230,13 @@ export default function AdminPage() {
                         </td>
                       </tr>
                       {expandedId === record.id && (
-                        <tr key={`${record.id}-expanded`}>
-                          <td colSpan={9} className="p-0">
+                        <tr>
+                          <td colSpan={4} className="p-0">
                             <ExpandedRow record={record} />
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
