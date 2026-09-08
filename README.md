@@ -7,8 +7,8 @@ Producción: https://ai-learning-checker.vercel.app
 ## Stack
 
 - Next.js 16 (App Router) + Tailwind
-- Gemini 2.5 Flash vía Vercel AI SDK (`@ai-sdk/google`)
-- Supabase para persistir análisis y datos demográficos
+- Gemini 3.5 Flash vía Vercel AI SDK (`@ai-sdk/google`)
+- Supabase para persistir los análisis
 - Deploy en Vercel
 
 ## Setup
@@ -40,7 +40,7 @@ Abrir http://localhost:3000.
 - `src/app/page.tsx` — UI principal con tabs (texto / PDF / link)
 - `src/app/api/analyze/route.ts` — endpoint que llama a Gemini y guarda en Supabase
 - `src/app/admin/page.tsx` — panel para ver análisis guardados
-- `src/app/components/` — componentes (Semaforo, AnalysisResult, SurveyScreen)
+- `src/app/components/` — componentes (Semaforo, AnalysisResult)
 - `src/lib/supabase.ts` — cliente Supabase
 - `supabase/schema.sql` — schema de la tabla `analisis`
 
