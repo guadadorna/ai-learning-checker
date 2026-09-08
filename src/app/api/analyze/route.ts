@@ -106,7 +106,7 @@ Estudiante: "Ya escribi mi ensayo sobre la Revolucion Francesa. No entiendo bien
 `;
 
 async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
-  const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+  const models = ["gemini-3.5-flash", "gemini-3.5-flash-lite"];
 
   for (const modelName of models) {
     try {
@@ -163,21 +163,27 @@ async function analyzeWithGemini(conversationText: string, pdfBase64?: string) {
 
 async function saveToSupabase(analysis: z.infer<typeof analysisSchema>) {
   console.log("Saving to Supabase:", { categoria: analysis.categoria });
-  const { error } = await getSupabaseClient().from("analisis").insert({
-    conversacion_anonimizada: analysis.conversacion_anonimizada,
-    categoria: analysis.categoria,
-    estado: analysis.estado,
-    resumen: analysis.resumen,
-    alertas: analysis.alertas,
-    positivos: analysis.positivos,
-    sugerencias: analysis.sugerencias,
-    intercambios: analysis.intercambios,
-  });
+  try {
+    const { error } = await getSupabaseClient().from("analisis").insert({
+      conversacion_anonimizada: analysis.conversacion_anonimizada,
+      categoria: analysis.categoria,
+      estado: analysis.estado,
+      resumen: analysis.resumen,
+      alertas: analysis.alertas,
+      positivos: analysis.positivos,
+      sugerencias: analysis.sugerencias,
+      intercambios: analysis.intercambios,
+    });
 
-  if (error) {
-    console.error("Error saving to Supabase:", error);
-  } else {
-    console.log("Saved to Supabase OK");
+    if (error) {
+      console.error("Error saving to Supabase:", error);
+    } else {
+      console.log("Saved to Supabase OK");
+    }
+  } catch (err) {
+    // getSupabaseClient() tira si faltan las variables de entorno. El guardado
+    // es secundario: si falla, el analisis igual se devuelve al alumno.
+    console.error("Error saving to Supabase:", err);
   }
 }
 
